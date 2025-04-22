@@ -1,0 +1,294 @@
+<html>
+
+<head>
+    <title>Magic Wand Duel | Arena</title>
+
+    <style>
+
+        body {
+            background-color: black;
+            font-family: Arial;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        canvas {
+            margin: auto;
+            position: absolute;
+            display: block;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        header {
+            display: block;
+            width: 100%;
+            padding-top: 30px;
+            padding-bottom: 30px;
+            font-size: 40px;
+            text-align: center;
+            color: white;
+        }
+
+        nav {
+            display: block;
+            width: 100%;
+            padding-top: 20px;
+            padding-bottom: 30px;
+            margin-bottom: 20px;
+            background-color: #222;
+            text-align: center;
+            font-size: 20px;
+            border-top: 3px solid #aaa;
+            border-bottom: 3px solid #aaa;
+            color: #aaa;
+        }
+
+        form {
+            display: block;
+            width: 100%;
+            padding: 0px;
+            margin: 0px;
+        }
+
+        div.team {
+            display: block;
+            width: 40%;
+            margin-top: 15px;
+            background-color: white;
+            border-radius: 10px;
+        }
+
+        div.normal {
+            border: 5px solid black;
+        }
+
+        div.victory {
+            border: 5px solid #26dd34;
+        }
+
+        #team_left {
+            float: left;
+            margin-left: 4%;
+        }
+
+        #team_right {
+            float: right;
+            margin-right: 4%;
+        }
+
+        div.name {
+            display: block;
+            width: 100%;
+            margin-top: 25px;
+            margin-bottom: 25px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+            background-color: darkgrey;
+            text-align: center;
+            font-size: 24px;
+        }
+
+        div.score {
+            width: 100%;
+            text-align: center;
+            font-size: 150px;
+            font-weight: bold;
+        }
+
+        div.spell {
+            display: block;
+            width: 100%;
+            margin-top: 15px;
+            margin-bottom: 25px;
+            padding-top: 10px;
+            padding-bottom: 10px;
+        }
+
+        div.neutral {
+            background-color: lightgray;
+        }
+
+        div.draw {
+            background-color: darkorange;
+        }
+
+        div.winner {
+            background-color: #26dd34;
+        }
+
+        div.looser {
+            background-color: red;
+        }
+
+        div.spell_heading {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-size: 26px;
+        }
+
+        div.spell_attribute {
+            display: block;
+            width: 100%;
+            margin-top: 5px;
+            text-align: center;
+            font-size: 22px;
+        }
+
+        input[type="text"].form:hover {
+            background-color: #333 !important;
+            color: white;
+        }
+
+    </style>
+
+</head>
+
+<body>
+    <canvas id="render" style="transform: scale(1,-1);"></canvas>
+
+    <header>
+        <b>Magic Duel Arena</b><br /><small style="color:#aaa;font-size:30px;"><i>"Magic or Computer Science? What's the difference?"</i></small>
+    </header>
+
+    <nav>
+        <form id="control">
+            <div style="display:inline;">Number of Rounds: {{ round }} / <input id="rounds" name="rounds" class="form" type="text" value="{{ max_rounds }}" style="position:relative;width:30px;height:30px;background-color:#eee;border:0px;border-radius:5px;text-align:center;font-weight:bold;font-size:20px;" /></div>
+            &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp;
+            <div style="display:inline;"><input id="reset" name="reset" class="form" type="checkbox" style="position:relative;background-color:#eee;accent-color:#eee;border-radius:5px;height:30px;width:30px;top:8px;" />&nbsp;Click to Reset Arena</div>
+        </form>
+    </nav>
+    
+    <div id="team_left" class="team {{ left_state }}">
+        <div class="name">Team: <b>{{ left_name }}</b></div>
+        <div class="score">{{ left_score }}<small style="font-size:80px;">&nbsp;/{{ max_rounds }}</small></div>
+        <div class="spell {{ left_spell_css }}">
+            <div class="spell_heading">Last Spell</div>
+            <div class="spell_attribute">Name: <b>{{ left_spell_name }}</b></div>
+            <div class="spell_attribute">Class: <b>{{ left_spell_class }}</b></div>
+        </div>
+    </div>
+
+    <div id="team_right" class="team {{ right_state }}">
+        <div class="name">Team: <b>{{ right_name }}</b></div>
+        <div class="score">{{ right_score }}<small style="font-size:80px;">&nbsp;/{{ max_rounds }}</small></div>
+        <div class="spell {{ right_spell_css }}">
+            <div class="spell_heading">Last Spell</div>
+            <div class="spell_attribute">Name: <b>{{ right_spell_name }}</b></div>
+            <div class="spell_attribute">Class: <b>{{ right_spell_class }}</b></div>
+        </div>
+    </div>
+
+    <script defer>
+        var canvas = document.getElementById('render');
+        var context = canvas.getContext('2d');
+
+        var time = 0,
+            velocity = 0.03,
+            velocityTarget = 0.03,
+            width,
+            height,
+            lastX,
+            lastY;
+
+        var MAX_OFFSET = 400;
+        var SPACING = 4;
+        var POINTS = MAX_OFFSET / SPACING;
+        var PEAK = MAX_OFFSET * 0.25;
+        var POINTS_PER_LAP = 6;
+        var SHADOW_STRENGTH = 9;
+
+        setup();
+
+        function submit() {
+            document.getElementById("control").submit();
+        }
+
+        setTimeout(function() {
+            submit();
+        }, 5000);
+
+        function setup() {
+
+            resize();
+            step();
+            
+            window.addEventListener( 'resize', resize );        
+        }
+
+        function resize() {
+
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        
+        }
+
+        function step() {
+        
+            time += velocity;
+            velocity += ( velocityTarget - velocity ) * 0.3;
+            
+            clear();
+            render();
+            
+            requestAnimationFrame( step );
+        
+        }
+
+        function clear() {
+        
+            context.clearRect( 0, 0, width, height );
+
+        }
+
+        function render() {
+        
+            var x, y,
+                cx = width/2,
+                cy = height/2;
+            cy *= 0.5;
+
+            context.globalCompositeOperation = 'lighter';
+            context.strokeStyle = '#fff';
+            context.shadowColor = '#aaa';
+            context.lineWidth = 6;
+            context.beginPath();
+
+            for( var i = POINTS; i > 0; i -- ) {
+                
+                var value = i * SPACING + ( time % SPACING );
+                
+                var ax = Math.sin( value/POINTS_PER_LAP ) * Math.PI,
+                    ay = Math.cos( value/POINTS_PER_LAP ) * Math.PI;
+
+                x = ax * value,
+                y = ay * value * 0.5;
+                
+                var o = 1 - ( Math.min( value, PEAK ) / PEAK );
+                
+                y -= Math.pow( o, 2 ) * 200;
+                y += 200 * value / MAX_OFFSET;
+                y += x / cx * width * 0.1;
+
+                context.globalAlpha = 1 - ( value / MAX_OFFSET );
+                context.shadowBlur = SHADOW_STRENGTH * o;
+            
+                context.lineTo( cx + x, cy + y );
+                context.stroke();
+            
+                context.beginPath();
+                context.moveTo( cx + x, cy + y );
+                
+            }
+
+            context.lineTo( cx, cy - 200 );
+            context.lineTo( cx, 0 );
+            context.stroke();
+            
+        }
+ 
+    </script>
+</body>
+</html>
