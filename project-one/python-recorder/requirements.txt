@@ -1,0 +1,6 @@
+numpy
+tk
+pyserial
+
+
+## ls /dev/tty.* /dev/cu.* für macbook
